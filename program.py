@@ -11,15 +11,11 @@ import numpy as np
 
 #Klasa trzymająca wyniki
 class Wynik:
-    def __init__(self, typ, x=None, y=None, fx=None, fy=None, ttk=None, start_y=None, start_x=None):
+    def __init__(self, typ, x=None, dok=None, ttk=None):
         self.typ = typ
         self.x = x
-        self.y = y
-        self.fx = fx
-        self.fy = fy
+        self.dok = dok
         self.ttk = ttk
-        self.start_x = start_x
-        self.start_y = start_y
 
 #Deklaracja Wyjątków
 class ZaDuzaDokladnosc(Exception): pass
@@ -77,46 +73,51 @@ def sieczne_krok(f, x, y):
 
 def sieczne(f, x, y, eps):
     ttk = 64
-    start_x=x; start_y=y
     while ttk > 0 and abs(x-y) > eps:
         temp = sieczne_krok(f, x, y)
         x = y
         y = temp
         ttk = ttk - 1
-    return Wynik("sieczne", x, y, f(x), f(y), ttk, start_x, start_y)
+        dok=abs(x-y)
+    if ttk==0: return Wynik("sieczne 64")
+    else: return Wynik("sieczne", temp, dok, ttk)
 
 #Metoda Siecznych+ - sieczne + reguły bisekcji
 def sieczne_plus(f, x, y, eps):
     if not różne_znaki(f(x), f(y)): 
         return Wynik("sieczne+ - znak")
     ttk = 64
-    while ttk > 0 and abs(x - y) > eps:
-        kolejny = sieczne_krok(f, x, y) 
-        if f(kolejny) < 0:
+    while ttk > 0 and abs(x-y) > eps:
+        kolejny = sieczne_krok(f, x, y)
+        if różne_znaki(f(y), f(kolejny)):
             x = kolejny
         else:
             y = kolejny
         ttk = ttk - 1
-    return Wynik("sieczne+", x, y, f(x), f(y), ttk)
+        dok=abs(x-y)
+    if ttk==0: return Wynik("sieczne+ 64")
+    else: return Wynik("sieczne+", kolejny, dok, ttk)
 
-#Metoda Bisekcji
+#Metoda Bisekcji        
 def bisekcja(f, x, y, eps):
     if not różne_znaki(f(x), f(y)):
         return Wynik("bisekcja - znak")
     ttk = 64
     while ttk > 0 and abs(x - y) > eps:
-        środek = (x + y) / 2
-        if f(środek) < 0: 
-            x = środek
+        srodek = (x + y) / 2
+        if różne_znaki(f(y), f(srodek)): 
+            x = srodek
         else: 
-            y = środek
+            y = srodek
         ttk = ttk - 1
-    return Wynik("bisekcja", x, y, f(x), f(y), ttk)
+    dok=abs(x - y)
+    if ttk==0: return Wynik("bisekcja 64")
+    else: return Wynik("bisekcja", srodek, dok, ttk)
 
 #Tabela wyników:
 def tab_wyn(x1, x2, f, e):
     wyniki=[]
-    r=[x for x in np.arange(x1, x2+1, 1)]
+    r=[x for x in np.arange(x1, x2+1, 0.1)]
     for i in r:
         for j in r:
             if i<j and i*j>0:
@@ -134,31 +135,29 @@ def licz(wyniki):
     for j in wyniki:
         i = j.typ
         if i == "sieczne":
-            if j.ttk > 0:
-                sz += 1
-                sttk += j.ttk
-            else:
-                sr += 1
+            sz += 1
+            sttk=sttk+64-j.ttk
+        if i == "sieczne 64":
+            sr += 1
         if i == "bisekcja":
             bz += 1
-            bttk += j.ttk
-        if i == "bisekcja - znak":
+            bttk=bttk+64-j.ttk
+        if i == "bisekcja - znak" or i=="bisekcja 64":
             bzn += 1
         if i == "sieczne+":
             spz += 1
-            spttk += j.ttk
-        if i == "sieczne+ - znak":
+            spttk=spttk+64-j.ttk
+        if i == "sieczne+ - znak" or i=="sieczne+ 64":
             spzn += 1
     
     if sz!=0: sśttk = sttk / sz
     else: sśttk=0
-    if sz!=0 or sr!=0: sss = sttk / (sz + sr)
     if bz!=0: bśttk = bttk / bz
     else: bśttk=0
     if spz!=0: spśttk = spttk / spz
     else: spśttk=0
 
-    return(bz, bzn, bśttk, sz, sr, sśttk, sss, spz, spzn, spśttk)
+    return(bz, bzn, bśttk, sz, sr, sśttk, spz, spzn, spśttk)
 
 #--------------------------------------------------GUI-----------------------------------------------------#
 
@@ -180,6 +179,7 @@ def zapisz():
     except:
         messagebox.showerror("Error", "Błąd 4: Niewykryty błąd, sprawdź poprawność pliku!")
 
+# Funkcja odpowiadająca za umożliwienie edycji pliku
 def ep():
     #Deklarowanie Ramki
     ep = to("Edycja pliku", "300x150", 1)
@@ -219,6 +219,7 @@ def ep():
     ep.mainloop()
     f.close()
 
+# Funkcja wyświetla wyniki tylko dla podanego przedziału
 def odp():
     try:
         odp = to("Obliczanie dla podanego", "1500x300", 0)
@@ -231,36 +232,41 @@ def odp():
         Label(odp, text="Bisekcja Wyniki:", font="Arial 12", justify=LEFT).grid(row=1, sticky=W+S)
         BW=bisekcja(funkcja,x1,x2,e)
 
-        if BW.typ!="bisekcja":
+        if BW.typ=="bisekcja - znak":
             Label(odp, text="W tym przedziale nie ma miejsca zerowego, metoda nie zadziała!\n", font="Arial 12").grid(row=2, sticky=W+S)
         else:
-            Label(odp, text="Miejsce zerowe występuje w przedziale [{}, {}] z dokladnością: {}, metoda wykonała {} kroków\n".format(BW.x, BW.y, float(abs((BW.y-BW.x)/2)), 64-BW.ttk), font="Arial 12").grid(row=2, sticky=W+S)
+            if BW.typ=="bisekcja 64":
+                Label(odp, text="Metoda dla podanego przykładu nie zmieściła się w 64 krokach").grid(row=2, sticky=W+S)
+            else:
+                Label(odp, text="Miejsce zerowe występuje w pobliżu x={} z dokladnością: {}, metoda wykonała {} kroków\n".format(BW.x, BW.dok, 64-BW.ttk), font="Arial 12").grid(row=2, sticky=W+S)
     
         #Deklaracja Siecznych
         Label(odp, text="Sieczne Wyniki:", font="Arial 12", justify=LEFT).grid(row=3, sticky=W+S)
         SW=sieczne(funkcja, x1, x2, e)
         
-        if SW.ttk==0:
+        if SW.typ=="sieczne 64":
             Label(odp, text="Metoda siecznych nie znalazła przedziału o podanej dokładności w 64 krokach\n", font="Arial 12").grid(row=4, sticky=W+S)
         else:
-            Label(odp, text="Miejsce zerowe występuje w przedziale [{}, {}] z dokladnością: {}, metoda wykonała {} kroków\n".format(SW.x, SW.y, float(abs((SW.y-SW.x)/2)), 64-SW.ttk), font="Arial 12").grid(row=4, sticky=W+S)
+            Label(odp, text="Miejsce zerowe występuje w pobliżu x={} z dokladnością: {}, metoda wykonała {} kroków\n".format(SW.x, SW.dok, 64-SW.ttk), font="Arial 12").grid(row=4, sticky=W+S)
 
         #Deklaracja Siecznych++
         Label(odp, text="Sieczne++ Wyniki:", font="Arial 12", justify=LEFT).grid(row=5, sticky=W+S)
         SPW=sieczne_plus(funkcja, x1, x2, e)
 
-        if SPW.typ!="sieczne+":
+        if SPW.typ=="sieczne+ - znak":
             Label(odp, text="Podane wartości są tego samego znaku, metoda nie zadziałała!\n", font="Arial 12").grid(row=6, sticky=W+S)
         else:
-            if SPW.ttk==0:
+            if SPW.typ=="sieczne+ 64":
                 Label(odp, text="Metoda siecznych++ nie znalazła przedziału o podanej dokładności w 64 krokach!\n", font="Arial 12").grid(row=6, sticky=W+S)
             else:
-                Label(odp, text="Miejsce zerowe występuje w przedziale [{}, {}] z dokładnością: {}, metoda wykonała {} kroków\n".format(SPW.x, SPW.y, float(abs((SPW.y-SPW.x)/2)), 64-SWP.ttk), font="Arial 12").grid(row=6, sticky=W+S)
+                Label(odp, text="Miejsce zerowe występuje w pobliżu x={} z dokladnością: {}, metoda wykonała {} kroków\n".format(SPW.x, SPW.dok, 64-SPW.ttk), font="Arial 12").grid(row=6, sticky=W+S)
         
         odp.mainloop()
     except:
         messagebox.showerror("Error", "Program nie zadziałał, sprawdź czy dane są poprawne!")
         odp.destroy()
+
+# Funkcja wyświetla wyniki dla kilku podprzedziałów podanego przedziału
 def gd():
     try:
         gd = to("Generuj dla przedziału", "1000x500", 0)
@@ -270,11 +276,11 @@ def gd():
         wyniki=licz(wyn_tab)
 
         Label(gd, text="Przedział: [{}, {}]\nDokładność: {}\nLiczba wygenerowanych przedziałów: {}\n".format(x1, x2, e, int(len(wyn_tab)/3)), font="Arial 12", justify=LEFT).grid(row=0,
-                                                                                                                  sticky=W + S)
+                                                                                                                    sticky=W + S)
 
         Label(gd, text="1.Bisekcja\n Znalezione: {}\n Nieznalezione: {}\n Średnia liczba kroków dla znalezionych: {}".format(wyniki[0], wyniki[1], wyniki[2]), font="Arial 12", justify=LEFT).grid(row=1, sticky=W+S)
-        Label(gd, text="2.Sieczne\n Znalezione: {}\n Nieznalezione: {}\n Średnia liczba kroków dla znalezionych: {} ({})".format(wyniki[3], wyniki[4], wyniki[5], wyniki[6]), font="Arial 12", justify=LEFT).grid(row=2, sticky=W+S)
-        Label(gd, text="3.Sieczne++\n Znalezione: {}\n Nieznalezione: {}\n Średnia liczba kroków dla znalezionych: {}".format(wyniki[7], wyniki[8], wyniki[9]), font="Arial 12", justify=LEFT).grid(row=3, sticky=W+S)
+        Label(gd, text="2.Sieczne\n Znalezione: {}\n Nieznalezione: {}\n Średnia liczba kroków dla znalezionych: {}".format(wyniki[3], wyniki[4], wyniki[5]), font="Arial 12", justify=LEFT).grid(row=2, sticky=W+S)
+        Label(gd, text="3.Sieczne++\n Znalezione: {}\n Nieznalezione: {}\n Średnia liczba kroków dla znalezionych: {}".format(wyniki[6], wyniki[7], wyniki[8]), font="Arial 12", justify=LEFT).grid(row=3, sticky=W+S)
 
         gd.mainloop()
     except:
