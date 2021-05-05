@@ -117,7 +117,7 @@ def bisekcja(f, x, y, eps):
 #Tabela wyników:
 def tab_wyn(x1, x2, f, e):
     wyniki=[]
-    r=[x for x in np.arange(x1, x2+1, 0.1)]
+    r=[x for x in np.arange(x1, x2, 0.01)]
     for i in r:
         for j in r:
             if i<j and i*j>0:
@@ -295,7 +295,7 @@ def di():
     Label(di, text="Plik pdf z dokumentacją programu oraz instrukcjami dla użytkownika:", justify=LEFT,
           font="Arial 12").grid(row=1, sticky=W + S)
     HTMLLabel(di,
-              html='<a href="https://drive.google.com/file/d/17P60zGUG9hhUjeFcsgkz3DF-QZfd7P_1/view?usp=sharing"> Dokumentacja Programu </a>').grid(
+              html='<a href="https://drive.google.com/file/d/1veMlgxby2U9pdjgfJptqZTg6EG-FkLUF/view?usp=sharing"> Dokumentacja Programu </a>').grid(
         row=2, sticky=W + S) #zmienić linka bo ten jest do starej dokumentacji
     
     di.mainloop()
